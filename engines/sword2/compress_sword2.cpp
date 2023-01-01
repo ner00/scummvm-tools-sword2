@@ -121,6 +121,89 @@ void CompressSword2::execute() {
 
 		pos = _input.readUint32LE();
 		length = _input.readUint32LE();
+		
+		/*
+		* -- ner0 --
+		* Filtering or replacing speech and music items by position
+		*
+		* - English (PC Gamer Demo):
+		* 	md5: 6b8821c47228d4769f2466ba50c48152 *SPEECH.CLU
+		* 	md5: 7421e0ba8b8ace92137699962097fb88 *MUSIC.CLU
+		* 	GENERAL.CLU: 522ecd261027f0b55315a32aaef97295 (first 5000 bytes), 4519015 bytes
+		* 	TEXT.CLU: dd156f3a5deb677505a770d45b4a7de5 (first 5000 bytes), 324690 bytes
+		*
+		* - French (CD1):
+		* 	md5: 9c3ebb5e8479658a7808406d2388440c *SPEECH.CLU
+		* 	md5: b7fa8c50b3d6b7958b39df6e87bb79e2 *MUSIC.CLU
+		* 	GENERAL.CLU: 31db8564f9187538f24d9fda0677f666 (first 5000 bytes), 7059728 bytes
+		* 	TEXT.CLU: d0cafb4d2982613ca4cf0574a0e4e079 (first 5000 bytes), 418165 bytes
+		*/
+		uint32 NEW_WAV_pos = 50224034;
+		NEW_WAV_pos = 0; // comment this if you want to use an external WAV
+		std::string NEW_WAV_str = std::__cxx11::to_string(NEW_WAV_pos) + ".wav";
+		const char *NEW_WAV = NEW_WAV_str.c_str();
+		if (NEW_WAV_pos > 0 && pos == NEW_WAV_pos) {
+			// Replace item with external WAV file named with position number
+			Common::File NEW_WAV_fp(NEW_WAV, "rb");
+			length = ((NEW_WAV_fp.size() - 36) / 2) - 3;
+		} else if (
+			// List of positions for items to keep/skip
+			/*
+			// ### SPEECH.CLU ###
+			(pos < 66001574 || pos > 67141515) 			// dock watchman convo
+			&& (pos < 67490328 || pos > 73930653) 		// dock environment speech
+			&& (pos < 110240700 || pos > 110881173) 	// dog biscuits, hook stick, beer bottle
+			&& pos != 111469348 						// lucky piece of coal
+			&& pos != 111665834 						// chimney cone
+			&& pos != 112456239 && pos != 112516115 	// poisoned dart
+			&& pos != 113178062 && pos != 113240066 	// tequilla worm
+			&& pos != 113779524 						// condor transglobal label
+			&& pos != 113831139 && pos != 113972118 	// nico's lipstick
+			&& pos != 114270358 						// eclipse news clipping
+			&& pos != 115266855 && pos != 115346407 	// lobineau's letter
+			&& pos != 116723411 						// oubier's bank statement
+			&& pos != 117057811 						// red panties
+			&& (pos < 152226453 || pos > 161141022) 	// dock environment speech
+			&& pos != 174549555 && pos != 174677236 	// dock intro
+			&& pos != 174864181 && pos != 174968630 	// dock outro
+			/**/
+
+			/**/
+			// ### MUSIC.CLU ###
+			pos != 121300354 	// menu / id 221
+			&& pos != 9003697 	// inspect lobineau's letter / id 17
+			&& pos != 6170808 	// inspect poisoned dart / id 10
+			&& pos != 17418084 	// inspect red panties / id 30
+			&& pos != 464208 	// inspect red panties 2 / id 7
+			&& pos != 40820296 	// intro pos_4392
+			&& pos != 43935006 	// inspect cabin's chimney pos_3079976
+			&& pos != 47695134 	// beer bottle on cabin's chimney pos_5375272
+			&& pos != 41591070 	// approach cabin/fence pos_741672
+			&& pos != 50224034 	// dog trap pos_7904172 [pos_50224034 from CD is different, use pos_7904172 WAV from demo]
+			&& pos != 41940254 	// peek cabin from window pos_1085224
+			&& pos != 42475806 	// ask watchman about time pos_1620776
+			&& pos != 43010334 	// ask watchman about condor transglobal pos_2155304
+			&& pos != 43525406 	// ominous pos_2670376 
+			&& pos != 44341022 	// grab beer bottle pos_3485992
+			&& pos != 46913822 	// peek cabin from trap door pos_4593960
+			&& pos != 48765858 	// enter cabin from trap door pos_6445996
+			&& pos != 47145246 	// fart fall pos_4825384
+			&& pos != 48021278 	// fill cabin with smoke pos_5701416
+			&& pos != 49945506 	// touch stove pos_7625644
+			&& pos != 49285026 	// pick box of biscuits pos_6965164
+			&& pos != 49582498 	// pick lucky piece of coal pos_7262636
+			&& pos != 50615202 	// outro pos_8669100
+			/**/
+			
+			// to ignore this list...
+			&& 0 == 1 // comment this if you want to filter encoded items
+		) {
+			// Skip current item, add empty entry and go to next item
+			_output_idx.writeUint32LE(0);
+			_output_idx.writeUint32LE(0);
+			_output_idx.writeUint32LE(0);
+			continue;
+		}
 
 		if (pos != 0 && length != 0) {
 			uint16 prev;
@@ -181,13 +264,27 @@ void CompressSword2::execute() {
 
 			f.close();
 
-			encodeAudio(TEMP_WAV, false, -1, tempEncoded, _format);
+			if (NEW_WAV_pos > 0 && pos == NEW_WAV_pos) { //ner0
+				encodeAudio(NEW_WAV, false, -1, tempEncoded, _format); //ner0
+			} else { //ner0
+				encodeAudio(TEMP_WAV, false, -1, tempEncoded, _format);
+			} //ner0
 			enc_length = append_to_file(_output_snd, tempEncoded);
 
 			_output_idx.writeUint32LE(totalSize);
 			_output_idx.writeUint32LE(length);
 			_output_idx.writeUint32LE(enc_length);
 			totalSize = totalSize + enc_length;
+					
+			/*
+			* -- ner0 --
+			* Rename WAV files with position number in filename to keep them after encoding
+			*/
+			/*
+			std::string _audioOutputFilenameRename_str = "sword2_pos_" + std::__cxx11::to_string(pos) + ".wav";
+			const char *_audioOutputFilenameRename = _audioOutputFilenameRename_str.c_str();
+			rename(TEMP_WAV, _audioOutputFilenameRename);
+			*/
 		} else {
 			_output_idx.writeUint32LE(0);
 			_output_idx.writeUint32LE(0);
