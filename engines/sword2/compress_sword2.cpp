@@ -174,7 +174,7 @@ void CompressSword2::execute() {
 			&& pos != 9003697 	// inspect lobineau's letter / id 17
 			&& pos != 6170808 	// inspect poisoned dart / id 10
 			&& pos != 17418084 	// inspect red panties / id 30
-			&& pos != 464208 	// inspect red panties 2 / id 7
+			&& pos != 4642084 	// inspect red panties 2 / id 7
 			&& pos != 40820296 	// intro pos_4392
 			&& pos != 43935006 	// inspect cabin's chimney pos_3079976
 			&& pos != 47695134 	// beer bottle on cabin's chimney pos_5375272
