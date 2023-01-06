@@ -1,0 +1,21 @@
+GETDSTRING NAME 0X22
+get file asize
+get entries long
+for rip = 1 to entries
+get offset long
+savepos temp
+get size long
+if size < file
+xmath offset "(offset -8)"
+xmath size "(size - 8)"
+xmath size "(size - offset)"
+goto temp
+slog "" offset size
+else
+xmath offset "(offset -8)"
+xmath size "(file - offset)"
+#xmath size "(size - temp2)"
+slog "" offset size
+endif
+
+next rip

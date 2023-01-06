@@ -1,0 +1,32 @@
+    File header
+      4 bytes, lookup table offset
+      4 bytes, null
+
+    Text Resources
+      24 bytes, resource header
+      4 bytes, resource id
+      16 bytes, null
+      4 bytes, lookup table, total # of dialogue lines
+      4 bytes, lookup table, offset for each dialogue
+        (loop the one above until # of total dialogue lines)
+      2 bytes, dialogue ID
+      ? bytes, dialogue text, null terminated
+        (loop the one above until # of total dialogue lines)
+      
+    File lookup table
+      4 bytes, text resource offset
+      4 bytes, text resource chunk size
+        (loop the two above until EOF)
+
+
+Note: The 4 bytes previous to the Lookup Table are self-referencing (weird checksum? seems inconsequential...)
+
+When changing a single dialogue line, for example, the following must be considered... let's assume that the original dialogue is 0x5a bytes and we add an extra 0x28 bytes to that line (0x82 bytes in total), the following must then be fixed:
+
+- File header checksum offset: if it was 0xb1aa04 before, it should now be 0xd9aa04 (+0x28 bytes)
+
+- Text Resource: byte-size must be divisible by 4, add enough null padding at the end of the resource if necessary.
+
+- Text Resource lookup table: assuming this is the 3rd dialogue line, all subsequent offsets of this particular resource, for 4th dialogue line and onward, now need to be increased by 0x28 bytes (ex: 4th offset was 0xc302, it will become 0xeb02, and so on for all remaining offsets after the offset of the changed dialogue).
+
+- File lookup table: the chunk size belonging to an edited text resource needs to be increased accordingly; any offsets bigger than the edited resource's also need to be adjusted accordingly (+0x28 bytes).
