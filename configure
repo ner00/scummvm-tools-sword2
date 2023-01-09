@@ -1028,6 +1028,23 @@ android | gamecube | psp | wii)
 	;;
 esac
 
+# Check if std::nullptr_t is available
+echo_n "Checking if C++11 std::nullptr_t is available..."
+cat > $TMPC << EOF
+#include <cstddef>
+int main(int argc, char *argv[]) {
+	std::nullptr_t i = nullptr;
+	return 0;
+}
+EOF
+cc_check
+if test "$TMPR" -eq 0; then
+		echo yes
+else
+		echo no
+		define_in_config_if_yes yes 'NO_CXX11_NULLPTR_T'
+fi
+
 if test -n "$STRINGS"; then
 	_strings=$STRINGS
 else
@@ -1183,12 +1200,13 @@ echo $_host_os
 case $_host_os in
 	amigaos*)
 		add_line_to_config_mk 'AMIGAOS = 1'
-		LDFLAGS="$LDFLAGS -L/sdk/local/newlib/lib"
 		# Use 'long' for ScummVM's 4 byte typedef, because AmigaOS
 		# already typedefs (u)int32 as (unsigned) long and suppress
 		# those noisy format warnings caused by the 'long' 4 byte
 		type_4_byte='long'
 		CXXFLAGS="$CXXFLAGS -Wno-format"
+		# Dependencies might also be compiled with stack protection
+		LDFLAGS="$LDFLAGS -L/sdk/local/newlib/lib -fstack-protector"
 		;;
 	beos*)
 		DEFINES="$DEFINES -DSYSTEM_NOT_SUPPORTING_D_TYPE"
@@ -1946,6 +1964,12 @@ typedef signed $type_1_byte int8;
 typedef signed $type_2_byte int16;
 typedef signed $type_4_byte int32;
 typedef signed $type_8_byte int64;
+
+#if defined(__APPLE__) && !defined(__ppc__)
+#ifndef _UINT64
+#define _UINT64
+#endif
+#endif
 
 #endif /* CONFIG_H */
 EOF

@@ -198,6 +198,7 @@ uint8 Script::getVerScript() const { return _verScript; }
 uint8 Script::getVerIMEX() const { return _verIMEX; }
 uint8 Script::getSuffixIM() const { return _suffixIM; }
 uint8 Script::getSuffixEX() const { return _suffixEX; }
+uint32 Script::getFuncNamesCount() const { return _funcOffsetsNames.size(); }
 
 void Script::putString(const char *s) const {
 	printf("%s", s);
@@ -251,13 +252,13 @@ void Script::seek(uint32 off, int whence) {
 	}
 }
 
-uint8  Script::peekUint8()  const { return *_ptr; }
-uint16 Script::peekUint16() const { return READ_LE_UINT16(_ptr); }
-uint32 Script::peekUint32() const { return READ_LE_UINT32(_ptr); }
+uint8  Script::peekUint8(int32 offset)  const { return *(_ptr + offset); }
+uint16 Script::peekUint16(int32 offset) const { return READ_LE_UINT16(_ptr + offset); }
+uint32 Script::peekUint32(int32 offset) const { return READ_LE_UINT32(_ptr + offset); }
 uint8  Script::readUint8()        { uint8  i = peekUint8();  _ptr += 1; return i; }
 uint16 Script::readUint16()       { uint16 i = peekUint16(); _ptr += 2; return i; }
 uint32 Script::readUint32()       { uint32 i = peekUint32(); _ptr += 4; return i; }
-const char *Script::peekString() const { return (char *) _ptr; }
+const char *Script::peekString(int32 offset) const { return (char *) _ptr + offset; }
 const char *Script::readString()  { const char *i = peekString(); _ptr += strlen(i) + 1; return i; }
 
 void Script::skipExpr(char stopToken) {
@@ -826,7 +827,7 @@ void Script::endFunc() const {
 
 void Script::loadProperties(byte *data) {
 	_start = READ_LE_UINT16(data + 0x64);
-	assert(_start >= 128);
+	//assert(_start >= 128) -> pure "library" files may have no defined entry point (_start = 0)
 
 	_varsCount = READ_LE_UINT16(data + 0x2C);
 	_totTextCount = READ_LE_UINT32(data + 0x30);
@@ -838,6 +839,39 @@ void Script::loadProperties(byte *data) {
 	_suffixEX = data[0x3C];
 	_animDataSize = READ_LE_UINT16(data + 0x38);
 	_textCenter = READ_LE_UINT16(data + 0x7E);
+}
+
+void Script::loadIDE(const byte *ideData) {
+	const byte *ptr = ideData;
+	char buffer[17];
+
+	uint16 count = *(const uint16 *)ptr;
+	ptr += 2;
+	for (uint32 i = 0; i < count; i++) {
+
+		// skip function type
+		byte functionType = *ptr;
+		++ptr;
+
+		memcpy(buffer, ptr, 17);
+		buffer[16] = '\0';
+		ptr += 17;
+
+		// skip unknown word
+		ptr += 2;
+
+		// Read offset
+		uint16 offset = *(const uint16 *)ptr;
+		ptr += 2;
+
+		// skip unknown word
+		ptr += 2;
+
+		if ((functionType != 0x47) && (functionType != 0x67))
+			continue;
+
+		_funcOffsetsNames[offset] = buffer;
+	}
 }
 
 void Script::funcBlock(int16 retFlag) {
@@ -889,13 +923,20 @@ void Script::addFuncOffset(uint32 offset) {
 	_funcOffsets.push_back(offset);
 }
 
-void Script::deGob(int32 offset) {
+void Script::deGob(int32 offset, bool isLib) {
 	_funcOffsets.clear();
 
-	if (offset < 0)
-		addStartingOffsets();
-	else
-	_funcOffsets.push_back(offset);
+	if (isLib) {
+		// Use functions from IDE file as entry points
+		for (auto it = _funcOffsetsNames.begin(); it != _funcOffsetsNames.end(); ++it)
+			addFuncOffset(it->first);
+	} else {
+		if (offset < 0)
+			addStartingOffsets();
+		else
+			_funcOffsets.push_back(offset);
+	}
+
 
 	for (std::list<uint32>::iterator it = _funcOffsets.begin(); it != _funcOffsets.end(); ++it) {
 		seek(*it);
@@ -905,6 +946,12 @@ void Script::deGob(int32 offset) {
 }
 
 void Script::deGobFunction() {
+	if (!_funcOffsetsNames.empty()) {
+		auto it = _funcOffsetsNames.find(getPos());
+		if (it != _funcOffsetsNames.end()) {
+			print("--- %s ---\n", it->second.c_str());
+		}
+	}
 	printIndent();
 	print("sub_%d {\n", getPos());
 	incIndent();

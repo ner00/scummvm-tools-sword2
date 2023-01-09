@@ -926,6 +926,8 @@ void Script_v1::o1_palLoad(FuncParams &params) {
 		break;
 
 	case 53:
+	case 55:
+	case 56:
 		skip(2);
 		break;
 
@@ -1127,15 +1129,84 @@ void Script_v1::o1_loadMultObject(FuncParams &params) {
 	startFunc(params);
 	print("%s, ", readExpr().c_str());
 	print("%s, ", readExpr().c_str());
-	print("%s", readExpr().c_str());
-	endFunc();
+	print("%s, ", readExpr().c_str());
 
 	for (int i = 0; i < 11; i++)
-		readExpr();
+	{
+		if (peekUint8() != 99)
+		{
+			switch (i) {
+			case 0:
+				printf("animation=");
+				break;
+			case 1:
+				printf("layer=");
+				break;
+			case 2:
+				printf("frame=");
+				break;
+			case 3:
+				printf("animType=");
+				break;
+			case 4:
+				printf("order=");
+				break;
+			case 5:
+				printf("isPaused=");
+				break;
+			case 6:
+				printf("isStatic=");
+				break;
+			case 7:
+				printf("maxTick=");
+				break;
+			case 8:
+				printf("maxFrame=");
+				break;
+			case 9:
+				printf("newLayer=");
+				break;
+			case 10:
+				printf("newAnimation=");
+				break;
+			default:
+				printf("unknownField=");
+			}
+
+			printf("%s%s", readExpr().c_str(), (i < 10)?", ":"");
+		}
+		else
+			skip(1);
+	}
+
+	endFunc();
 }
 
 void Script_v1::o1_dummy(FuncParams &params) {
 	seek((uint32) -2, SEEK_CUR);
 	uint16 size = readUint16();
 	skip(size * 2);
+}
+
+void  Script_v1::o1_copySprite(FuncParams &params) {
+	startFunc(params);
+	if (peekUint8(1) == 0)
+		print("%d, ", readUint16());
+	else
+		print("%s, ", readExpr().c_str());
+
+	if (peekUint8(1) == 0)
+		print("%d, ", readUint16());
+	else
+		print("%s, ", readExpr().c_str());
+
+	print("%s, ", readExpr().c_str());
+	print("%s, ", readExpr().c_str());
+	print("%s, ", readExpr().c_str());
+	print("%s, ", readExpr().c_str());
+	print("%s, ", readExpr().c_str());
+	print("%s, ", readExpr().c_str());
+
+	print("%d", readUint16());
+	endFunc();
 }
